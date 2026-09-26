@@ -1,5 +1,4 @@
 polars>=1.12,<2
-pyarrow>=18,<20
 pandas>=2.2,<3
 numpy>=2.0,<3
 scikit-learn>=1.5,<2
@@ -7,7 +6,5 @@ rapidfuzz>=3.9,<4
 lightgbm>=4.5,<5
 pyyaml>=6.0,<7
 joblib>=1.4,<2
-sentence-transformers>=3,<4
-faiss-cpu>=1.9,<2
 pytest>=8,<9
 ruff>=0.7,<1
