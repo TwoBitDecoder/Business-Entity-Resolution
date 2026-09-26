@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "business-entity-resolution"
+version = "0.1.0"
+description = "Offline ML pipeline for noisy cross-source business entity resolution"
+requires-python = ">=3.11"
+dependencies = [
+  "pandas>=2.2,<3",
+  "numpy>=2.0,<3",
+  "scikit-learn>=1.5,<2",
+  "rapidfuzz>=3.9,<4",
+  "lightgbm>=4.5,<5",
+  "pyyaml>=6.0,<7",
+  "joblib>=1.4,<2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9", "ruff>=0.7,<1"]
+dense = ["sentence-transformers>=3,<4", "faiss-cpu>=1.9,<2"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
