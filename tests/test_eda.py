@@ -24,5 +24,6 @@ def test_build_report(tmp_path: Path):
 
     report = build_report(tmp_path)
     assert "total positive pairs: 1" in report
-    assert "exact normalized name: 1 (100.00%)" in report
+    assert "singleton S1 entities: 0 (0.00%)" in report
+    assert "exactly 1 match: 1 (100.00%)" in report
     assert "FR=1" in report
