@@ -1,0 +1,35 @@
+seed: 42
+
+data:
+  train_dir: data/train
+  test_dir: data/test
+
+normalization:
+  unicode_form: NFKC
+  lowercase: true
+  strip_punctuation: true
+  collapse_whitespace: true
+
+candidates:
+  char_tfidf:
+    enabled: true
+    ngram_range: [2, 5]
+    top_k_name: 30
+    top_k_address: 30
+    top_k_combined: 40
+  exact_rules:
+    enabled: true
+  dense:
+    enabled: false
+    top_k: 30
+
+model:
+  type: lightgbm
+  threshold_search:
+    min: 0.50
+    max: 0.99
+    steps: 50
+
+evaluation:
+  beta: 0.5
+  candidate_recall_ks: [5, 10, 20, 50, 100]
