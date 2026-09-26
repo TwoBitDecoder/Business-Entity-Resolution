@@ -6,8 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "business-entity-resolution"
 version = "0.1.0"
 description = "Offline ML pipeline for noisy cross-source business entity resolution"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.13"
 dependencies = [
+  "polars>=1.12,<2",
   "pandas>=2.2,<3",
   "numpy>=2.0,<3",
   "scikit-learn>=1.5,<2",
@@ -20,6 +21,12 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8,<9", "ruff>=0.7,<1"]
 dense = ["sentence-transformers>=3,<4", "faiss-cpu>=1.9,<2"]
+parquet = ["pyarrow>=18"]
+all = [
+  "sentence-transformers>=3,<4",
+  "faiss-cpu>=1.9,<2",
+  "pyarrow>=18",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
