@@ -458,3 +458,47 @@ Next controlled structural experiment:
 - retrieve Top-K independently from Source 2 and Source 3, then merge/cap to the same final Top-40
 - measure recall and candidate volume versus the frozen combined-target baseline
 - if recall is preserved, benchmark runtime/memory because each target index becomes roughly half-sized
+
+
+### R8 — source-split retrieval diagnostic
+
+Status: **REJECTED**
+
+Controlled India benchmark:
+
+- 1,000 Source-1 queries
+- Source 2 targets: 250,000
+- Source 3 targets: 250,000
+- 416 reachable truth pairs
+
+Combined-target baseline:
+
+- 39,676 candidates
+- 407/416 truth pairs
+- 97.8365% recall
+- 58.50 s
+
+Source-split:
+
+- 40,000 candidates
+- 395/416 truth pairs
+- 94.9519% recall
+- 58.72 s total (30.82 s S2 + 27.90 s S3)
+
+Decision:
+
+- reject source-split retrieval
+- it loses 12 reachable truth pairs (~2.88 percentage points recall)
+- it provides no runtime improvement in the controlled benchmark
+- keep combined-target retrieval semantics
+
+Production implication:
+
+The tested exact blocking, similarity pruning, larger batches, and source splitting do not solve the country-wide runtime bottleneck without unacceptable recall loss. Stop adding retrieval heuristics.
+
+Next plan:
+
+- freeze retrieval research at the validated 97.84% controlled recall
+- proceed to feature/model development using bounded candidate samples now
+- in parallel, production candidate generation remains an engineering bottleneck to revisit before full inference
+- prioritize proving the classifier, thresholding, and output logic instead of spending the remaining project time exclusively on retrieval micro-optimizations
