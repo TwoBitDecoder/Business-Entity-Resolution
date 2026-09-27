@@ -764,3 +764,32 @@ India bounded smoke:
 Decision:
 - component integration is functional on real preprocessed data
 - proceed to production orchestration/checkpointing; do not reinterpret this bounded smoke as production-quality evaluation
+
+
+### Stage 8 production readiness audit
+
+Status: **PIPELINE ENGINEERING PASSED; FULL-SCALE RETRIEVAL RUNTIME BLOCKED**
+
+Verified after sequential gated changes:
+
+- full unit test suite passes after submission, model-artifact, inference, resume, preflight, scoring-checkpoint, and assembly changes
+- bounded real-data end-to-end smoke passes
+- production candidate retrieval can resume completed signal chunks
+- resumed retrieval checkpoints validate query-chunk identity
+- production preflight rejects missing/non-contiguous candidate parts
+- production scoring is checkpointed per candidate part and resumable
+- final assembly requires complete scored-part coverage
+- final output validator enforces Source-1 coverage, valid test IDs, candidate-subset matches, uniqueness, and required TSV schemas
+- model artifact records feature schema, seed, best iteration, and provisional decision threshold 0.09
+
+Remaining blocker:
+
+- frozen full-pool char-TFIDF retrieval remains operationally too slow: measured India name-only projection is ~17.59 hours; address plus other countries add further cost
+- therefore do not claim the full test submission has been produced or that Stage 10 is complete
+- no rejected low-recall prefilter is promoted merely to meet runtime
+
+Audit decision:
+
+- freeze new experimental retrieval work
+- production plumbing is ready to consume candidate checkpoints
+- next action is cleanup/reproducibility documentation and an explicit runbook, while preserving the runtime limitation in project documentation
