@@ -386,3 +386,41 @@ For every change:
 8. Mark PASS / FAIL / REVISE.
 9. Update this checklist.
 10. Only then move to the next stage.
+
+
+### R6 — cheap blocking-key coverage diagnostic
+
+Status: **REJECTED AS EXCLUSIVE PRODUCTION BLOCKING**
+
+Controlled India benchmark:
+
+- 1,000 Source-1 queries
+- 500,000 targets
+- 416 reachable truth pairs
+- name-prefix2 coverage: 66.35%
+- name-prefix3 coverage: 65.87%
+- name-suffix2 coverage: 34.86%
+- name-suffix3 coverage: 33.89%
+- first-address-number coverage: 59.62%
+- union coverage across all tested keys: 90.38%
+
+Union target-pool sizes:
+
+- median: 121,324.5
+- p90: 131,665
+- p99: 139,774
+- max: 146,497
+- mean: 88,224
+
+Decision:
+
+- reject these exact keys as an exclusive blocking layer because their 90.38% truth-pair coverage would cap recall well below the frozen 97.84% hybrid retrieval result
+- the pool reduction is useful but not sufficient to justify losing ~7.5 percentage points of reachable truth-pair recall
+- do not adopt this blocking scheme in production
+
+Next controlled optimization:
+
+- test minimum-similarity pruning on the existing validated sparse retrieval
+- keep the same character TF-IDF representation and Top-K
+- sweep conservative similarity thresholds and measure recall + runtime
+- only adopt a threshold if recall remains effectively unchanged while runtime improves materially
