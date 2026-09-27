@@ -66,9 +66,15 @@ def _run_signal_pass(
         config=RetrievalConfig(top_k=top_k),
     )
     index_seconds = time.perf_counter() - started
+
+    # The fitted index owns everything needed for querying. Release the raw
+    # multi-million-row target frame before processing Source-1 chunks.
+    del targets
+    gc.collect()
+
     print(
         f"{country}: [{label}] index ready in {index_seconds:.1f}s; "
-        f"processing {qrows:,} queries...",
+        f"raw targets released; processing {qrows:,} queries...",
         flush=True,
     )
 
@@ -102,7 +108,6 @@ def _run_signal_pass(
     # Critical memory boundary: one large signal index must be gone before
     # the next signal target frame/index is constructed.
     del index
-    del targets
     gc.collect()
     print(f"{country}: [{label}] pass complete; index released.", flush=True)
 
