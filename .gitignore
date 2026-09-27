@@ -5,7 +5,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 Unstop/
-Hackathon/
+hackathon/
 .env
 .DS_Store
 
