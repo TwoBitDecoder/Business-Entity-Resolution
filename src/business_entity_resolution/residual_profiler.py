@@ -78,7 +78,6 @@ def build_profile(data_dir: str | Path = "data") -> dict:
     # Prefix-4 may be large, so it is diagnostic; we do not persist candidates.
     rules = {
         "name_prefix6": _rule(s1, targets, "name_prefix6"),
-        "name_prefix4": _rule(s1, targets, "name_prefix4"),
         "address_numbers": _rule(
             s1.filter(pl.col("address_numbers") != ""),
             targets.filter(pl.col("address_numbers") != ""),
@@ -93,8 +92,8 @@ def build_profile(data_dir: str | Path = "data") -> dict:
         "residual_positive_pairs": residual_n,
         "rules": metrics,
         "warning": (
-            "Prefix rules are diagnostics, not final blockers. If candidate volume is excessive, "
-            "Stage 4 will use capped sparse character-ngram top-K retrieval instead."
+            "These are diagnostics, not final blockers. Prefix-4 is disabled at full scale because "
+            "its many-to-many join can exhaust memory. Stage 4 will use capped sparse top-K retrieval."
         ),
     }
 
