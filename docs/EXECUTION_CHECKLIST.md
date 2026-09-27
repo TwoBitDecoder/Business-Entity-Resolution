@@ -176,7 +176,7 @@ Conclusion: do not keep name and address target indexes resident simultaneously.
 
 ### P3 — sequential two-pass production retrieval
 
-Status: **NEXT CHANGE**
+Status: **IMPLEMENTED — UNIT/REAL-DATA GATE PENDING**
 
 Plan:
 
@@ -208,6 +208,20 @@ Gate after implementation:
 - record address-index RAM
 - record first 3-5 query-chunk timings
 - stop if total RAM approaches 12-13 GB
+
+Implementation notes:
+
+- sequential name/address passes are now in production code
+- only one signal target frame/index is resident at a time
+- raw target frame is explicitly released immediately after each index is built
+- temporary candidate parts are deleted only after their merged final part is written
+- synthetic equivalence and cleanup tests were added
+
+Code commits:
+
+- `3af1bae` sequential two-pass production retrieval
+- `f71b915` two-pass equivalence / cleanup tests
+- `17982e5` release raw target frame immediately after index construction
 
 Do **not** start full-country generation until this gate passes.
 
