@@ -128,3 +128,40 @@ def score_production_parts(*,model_dir="artifacts/model",
         stats.append({"country":country,"parts":len(paths),"written_parts":written,
                       "resumed_parts":resumed,"scored_rows":rows})
     return stats
+
+
+def assemble_scored_submission(*,preprocessed_root="artifacts/preprocessed/test",
+                               candidate_root="artifacts/candidates/test",
+                               scored_root="artifacts/scored/test",
+                               model_dir="artifacts/model",output_dir="output",
+                               countries=("France","India","US")):
+    """Assemble final TSVs from scored checkpoints without rebuilding features."""
+    root=Path(preprocessed_root)
+    source1=load_partitioned_records(root,"source1",countries)
+    targets=pl.concat([load_partitioned_records(root,s,countries) for s in ("source2","source3")],how="vertical")
+    metadata=json.loads((Path(model_dir)/"metadata.json").read_text(encoding="utf-8"))
+    threshold=float(metadata["decision_threshold"])
+    scored_frames=[]; candidate_frames=[]
+    for country in countries:
+        cparts=sorted((Path(candidate_root)/f"country={country}").glob("part-*.parquet"))
+        sparts=sorted((Path(scored_root)/f"country={country}").glob("part-*.parquet"))
+        if [x.name for x in cparts] != [x.name for x in sparts]:
+            raise RuntimeError(f"scored checkpoint coverage mismatch for {country}")
+        for cp,sp in zip(cparts,sparts):
+            cand=pl.read_parquet(cp,columns=["s1_id","target_id"])
+            scored=pl.read_parquet(sp,columns=["s1_id","target_id","match_probability"])
+            if cand.height != scored.height:
+                raise RuntimeError(f"candidate/scored row mismatch: {country}/{cp.name}")
+            candidate_frames.append(cand); scored_frames.append(scored)
+    candidates=pl.concat(candidate_frames,how="vertical")
+    scored=pl.concat(scored_frames,how="vertical")
+    matching=build_matching_results(source1,scored,threshold=threshold)
+    pairs=build_candidate_pairs(candidates)
+    validate_submission(source1,targets,matching,pairs)
+    write_submission(output_dir,matching,pairs)
+    result={"countries":list(countries),"source1_rows":source1.height,
+            "candidate_pairs":pairs.height,"matching_rows":matching.height,
+            "decision_threshold":threshold}
+    Path(output_dir).mkdir(parents=True,exist_ok=True)
+    (Path(output_dir)/"metadata.json").write_text(json.dumps(result,indent=2)+"\n",encoding="utf-8")
+    return result
