@@ -63,7 +63,7 @@ def _run_signal_pass(
     index = SparseTopKIndex(
         targets,
         text_column=text_column,
-        config=RetrievalConfig(top_k=top_k),
+        config=RetrievalConfig(top_k=top_k, n_jobs=2),
     )
     index_seconds = time.perf_counter() - started
 
