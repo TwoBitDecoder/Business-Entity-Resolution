@@ -52,10 +52,8 @@ def train_pair_classifier(
     model.fit(
         feature_matrix(train),
         train["is_match"].cast(pl.Int8).to_numpy(),
-        eval_set=[(
-            feature_matrix(validation),
-            validation["is_match"].cast(pl.Int8).to_numpy(),
-        )],
+        eval_X=feature_matrix(validation),
+        eval_y=validation["is_match"].cast(pl.Int8).to_numpy(),
         eval_metric="binary_logloss",
         callbacks=[lgb.early_stopping(50, verbose=False)],
     )
