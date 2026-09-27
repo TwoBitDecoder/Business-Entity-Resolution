@@ -538,3 +538,26 @@ Decision:
 - Stage 5 bounded gate passed
 - freeze this initial feature set and advance to Stage 6
 - next: construct labelled candidate training data with S1-grouped train/validation split and candidate hard negatives
+
+
+#### Stage 6 bounded labelled training-data audit
+
+Status: **PASSED**
+
+India controlled gate:
+
+- 1,000 S1 queries / 500,000 targets / 39,676 candidates
+- deterministic grouped split, seed 42, requested validation fraction 20%
+- zero S1 entities cross train/validation
+- train: 767 entities, 30,446 pairs, 322 positives, 30,124 negatives
+- validation: 233 entities, 9,230 pairs, 85 positives, 9,145 negatives
+- positive candidate entities: 336
+- max retrieved positives for one S1: 3
+- feature/label/split construction: 0.536 s
+
+Decision:
+
+- Stage 6 split/label construction passes
+- candidate negatives are retrieval hard negatives by construction
+- keep all retrieved negatives for the first LightGBM baseline; do not downsample yet
+- advance to Stage 7 baseline classifier
