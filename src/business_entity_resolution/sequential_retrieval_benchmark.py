@@ -1,4 +1,4 @@
-"""Stage 4D.3: sequential-signal retrieval to reduce peak live memory."""
+"""Stage 4D.4a: diagnose which sequential-retrieval phase sets peak RSS."""
 
 from __future__ import annotations
 
@@ -84,6 +84,7 @@ def run_sequential_benchmark(
     ], how="vertical")
     load_s = time.perf_counter() - started
     rss_after_load = _current_rss_mb()
+    max_after_load = _max_rss_mb()
 
     t = time.perf_counter()
     name_index = SparseTargetIndex.build(
@@ -93,14 +94,18 @@ def run_sequential_benchmark(
     )
     name_build_s = time.perf_counter() - t
     rss_name_index = _current_rss_mb()
+    max_after_name_index = _max_rss_mb()
+
     name_candidates, name_query_s = _retrieve_signal(
         name_index, queries, text_column="name_compact", chunk_size=chunk_size
     )
     rss_after_name_query = _current_rss_mb()
+    max_after_name_query = _max_rss_mb()
 
     del name_index
     gc.collect()
     rss_after_name_free = _current_rss_mb()
+    max_after_name_free = _max_rss_mb()
 
     t = time.perf_counter()
     address_index = SparseTargetIndex.build(
@@ -110,14 +115,18 @@ def run_sequential_benchmark(
     )
     address_build_s = time.perf_counter() - t
     rss_address_index = _current_rss_mb()
+    max_after_address_index = _max_rss_mb()
+
     address_candidates, address_query_s = _retrieve_signal(
         address_index, queries, text_column="address_norm", chunk_size=chunk_size
     )
     rss_after_address_query = _current_rss_mb()
+    max_after_address_query = _max_rss_mb()
 
     del address_index
     gc.collect()
     rss_after_address_free = _current_rss_mb()
+    max_after_address_free = _max_rss_mb()
 
     t = time.perf_counter()
     hybrid = merge_hybrid(name_candidates, address_candidates, final_k=final_k)
@@ -159,6 +168,15 @@ def run_sequential_benchmark(
             "after_address_query": rss_after_address_query,
             "after_address_free": rss_after_address_free,
         },
+        "max_rss_checkpoints_mb": {
+            "after_load": max_after_load,
+            "after_name_index": max_after_name_index,
+            "after_name_query": max_after_name_query,
+            "after_name_free": max_after_name_free,
+            "after_address_index": max_after_address_index,
+            "after_address_query": max_after_address_query,
+            "after_address_free": max_after_address_free,
+        },
         "process_max_rss_mb": _max_rss_mb(),
     }
 
@@ -176,7 +194,7 @@ def main() -> None:
         target_limit_per_source=a.targets_per_source,
         chunk_size=a.chunk_size, n_jobs=a.n_jobs,
     )
-    out = Path("artifacts/stage4d3_sequential_benchmark.json")
+    out = Path("artifacts/stage4d4_phase_memory_diagnostic.json")
     out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2))
     print(f"Saved: {out}")
