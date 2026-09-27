@@ -629,3 +629,25 @@ Decision:
 - treat 0.09 as provisional, not globally calibrated: France is unseen in training and production candidate coverage differs from the bounded 500k experiment
 - stop threshold micro-tuning
 - next priority is production/end-to-end engineering and submission validation
+
+
+#### Stage 8 faster name-retrieval experiment
+
+Status: **PROMISING SPEED RESULT; RECALL COMPARISON INVALID, REVISE BENCHMARK**
+
+India 1K queries / 500K targets:
+
+- frozen char 3-5: 17.33s, 20,000 candidates
+- word 1-2: 4.25s, 20,000 candidates
+- observed speedup: 4.08x
+
+Important benchmark flaw:
+
+- each retriever's recall denominator was restricted to target IDs appearing in that retriever's own candidate output
+- frozen truth_pool=283 while word truth_pool=258 proves the denominators differ
+- therefore the reported 99.29% vs 99.22% recalls are not comparable and must not justify a production switch
+
+Decision:
+
+- do not replace frozen retrieval yet
+- next controlled change: fix benchmark to use one common truth pool defined by the bounded target universe, then rerun
