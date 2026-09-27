@@ -24,7 +24,7 @@ def _max_rss_mb() -> float:
 def _load(path: Path, limit: int) -> pl.DataFrame:
     return (
         pl.scan_parquet(path)
-        .select("entity_id", "name_compact", "address_norm")
+        .select("entity_id", "name_norm", "name_compact", "address_norm")
         .head(limit)
         .collect(engine="streaming")
     )
