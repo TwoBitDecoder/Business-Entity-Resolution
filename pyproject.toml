@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "business-entity-resolution"
 version = "0.1.0"
 description = "Offline ML pipeline for noisy cross-source business entity resolution"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11"
 dependencies = [
   "polars>=1.12,<2",
   "pandas>=2.2,<3",
