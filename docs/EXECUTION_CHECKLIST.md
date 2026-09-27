@@ -651,3 +651,21 @@ Decision:
 
 - do not replace frozen retrieval yet
 - next controlled change: fix benchmark to use one common truth pool defined by the bounded target universe, then rerun
+
+
+#### Stage 8 word 1-2 gram name retriever — corrected benchmark
+
+Status: **REJECTED**
+
+Common truth pool, India 1K queries / 500K targets:
+
+- frozen char 3-5: 16.74s, 281/416 truth pairs, name-only recall 67.55%
+- word 1-2: 4.29s, 256/416 truth pairs, name-only recall 61.54%
+- speedup: 3.91x
+- absolute recall loss: 6.01 percentage points
+
+Decision:
+
+- speed improvement is real, but recall loss is too large for a precision-heavy entity-resolution pipeline where retrieval misses are unrecoverable
+- do not replace the frozen char 3-5 name retriever with word 1-2
+- preserve frozen retrieval quality and move to a different production-engineering strategy
