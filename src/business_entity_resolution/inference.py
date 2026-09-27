@@ -92,3 +92,39 @@ def validate_production_inputs(*,preprocessed_root="artifacts/preprocessed/test"
     metadata=json.loads((mroot/"metadata.json").read_text(encoding="utf-8"))
     if "decision_threshold" not in metadata: raise ValueError("model metadata missing decision_threshold")
     return {"countries":list(countries),"decision_threshold":float(metadata["decision_threshold"])}
+
+
+def score_production_parts(*,model_dir="artifacts/model",
+                           candidate_root="artifacts/candidates/test",
+                           preprocessed_root="artifacts/preprocessed/test",
+                           scored_root="artifacts/scored/test",
+                           countries=("France","India","US"),replace=False):
+    """Score candidate parts independently and checkpoint each completed part."""
+    model=joblib.load(Path(model_dir)/"pair_model.joblib")
+    root=Path(preprocessed_root); out=Path(scored_root)
+    stats=[]
+    for country in countries:
+        source1=load_partitioned_records(root,"source1",(country,))
+        targets=pl.concat([load_partitioned_records(root,s,(country,)) for s in ("source2","source3")],how="vertical")
+        paths=sorted((Path(candidate_root)/f"country={country}").glob("part-*.parquet"))
+        if not paths: raise ValueError(f"no candidate parts found for {country}")
+        country_out=out/f"country={country}"; country_out.mkdir(parents=True,exist_ok=True)
+        written=resumed=rows=0
+        for path in paths:
+            dest=country_out/path.name
+            if dest.is_file() and not replace:
+                existing=pl.read_parquet(dest,columns=["s1_id","target_id","match_probability"])
+                rows+=existing.height; resumed+=1
+                continue
+            candidates=pl.read_parquet(path)
+            query_ids=candidates["s1_id"].unique()
+            q=source1.filter(pl.col("entity_id").is_in(query_ids))
+            target_ids=candidates["target_id"].unique()
+            t=targets.filter(pl.col("entity_id").is_in(target_ids))
+            features=build_pair_features(candidates,q,t)
+            scored=score_pairs(model,features)
+            scored.write_parquet(dest,compression="zstd")
+            rows+=scored.height; written+=1
+        stats.append({"country":country,"parts":len(paths),"written_parts":written,
+                      "resumed_parts":resumed,"scored_rows":rows})
+    return stats
