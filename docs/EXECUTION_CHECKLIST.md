@@ -688,3 +688,24 @@ Decision:
 - do not increase production batch size as the primary runtime fix
 - runtime bottleneck is sparse similarity computation itself, not Python/chunk-call overhead
 - next production optimization must change execution strategy while preserving the frozen candidate semantics
+
+
+#### Stage 8 sparse retrieval thread scaling
+
+Status: **PASSED — PRODUCTION THREAD COUNT = 2**
+
+India 5K queries / 500K targets, frozen char 3-5 Top20:
+
+- 1 thread: 20.72s, 241.27 queries/s
+- 2 threads: 13.44s, 372.04 queries/s, 1.542x vs single thread
+- 4 threads: 17.26s, 289.64 queries/s
+- 8 threads: 27.31s, 183.10 queries/s
+- 16 threads: 33.87s, 147.60 queries/s
+- candidate outputs identical at every thread count
+
+Decision:
+
+- current n_jobs=-1 / 16-thread production setting is actively harmful on this machine
+- use n_jobs=2 for production sparse retrieval
+- this preserves exact frozen candidate semantics while materially improving throughput
+- next gate: patch production retrieval default to 2 threads and run regression tests before any full-country execution
