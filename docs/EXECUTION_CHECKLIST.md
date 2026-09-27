@@ -728,3 +728,22 @@ Decision:
 - the 2-thread production path reproduces the thread benchmark throughput
 - do not extrapolate 0.655h to the full ~4.13M India target pool; sparse multiplication cost depends on target index size/density
 - next gate: benchmark the actual full India target pool on a small query sample before launching full-country inference
+
+
+#### Stage 8 full-target timing gate
+
+Status: **FAILED RUNTIME GATE**
+
+India, frozen char 3-5 Name20, 2 threads, full 4,133,346 target rows / 1K queries:
+
+- index build: 92.52s
+- query: 71.70s
+- throughput: 13.95 queries/s
+- projected full India name query pass: 17.59h
+
+Decision:
+
+- the 2-thread advantage observed at 500K targets does not make the full-target production run viable
+- do not launch full-country retrieval with the current exact full-pool multiplication strategy
+- candidate semantics remain frozen; next gate must reduce sparse multiplication search work without silently accepting recall loss
+- benchmark any new execution strategy first on the controlled truth-bearing sample and require candidate-recall evidence before adoption
