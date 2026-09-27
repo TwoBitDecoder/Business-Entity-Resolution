@@ -39,8 +39,16 @@ def run(root="artifacts/preprocessed/test", output="output"):
         print(f"{country}: {q.height:,} S1; {pairs.height:,} exact pairs",flush=True)
     matching=pl.concat(match_frames).sort("source1_entity_id")
     candidates=pl.concat(cand_frames).sort("source1_entity_id")
-    matching.write_csv(out/"matching_results.tsv",separator="\t")
-    candidates.write_csv(out/"candidate_pairs.tsv",separator="\t")
+    # Polars quotes empty strings as "". The official validator requires a truly
+    # empty second TSV field, so write these two simple columns manually.
+    with (out/"matching_results.tsv").open("w",encoding="utf-8",newline="") as fh:
+        fh.write("source1_entity_id\\tmatched_entity_ids\\n")
+        for s1, ids in matching.iter_rows():
+            fh.write(f"{s1}\\t{ids}\\n")
+    with (out/"candidate_pairs.tsv").open("w",encoding="utf-8",newline="") as fh:
+        fh.write("source1_entity_id\\tcandidate_entity_ids\\n")
+        for s1, ids in candidates.iter_rows():
+            fh.write(f"{s1}\\t{ids}\\n")
     print(f"WROTE {matching.height:,} rows to {out}/matching_results.tsv")
     print(f"WROTE {candidates.height:,} rows to {out}/candidate_pairs.tsv")
 
