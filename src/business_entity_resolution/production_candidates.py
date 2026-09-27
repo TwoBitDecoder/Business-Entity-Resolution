@@ -1,8 +1,7 @@
-"""Production hybrid candidate generation, chunked by Source-1 country partition.
+"""Production hybrid candidate generation with reusable target indexes.
 
-Uses the frozen R5 configuration: char-TFIDF name Top-20 + address Top-20,
-deduplicated to <=40 candidates per Source-1 entity. Each query chunk is
-written immediately to Parquet.
+Frozen R5 config: char-TFIDF name Top-20 + address Top-20, <=40 final.
+Target TF-IDF is built once per signal/country and reused across query chunks.
 """
 from __future__ import annotations
 import argparse, json, shutil, time
@@ -11,7 +10,7 @@ import polars as pl
 from .bounded_retrieval import RetrievalConfig
 from .hybrid_candidates import combine_fuzzy_candidates, validate_hybrid_bound
 from .retrieval_benchmark_runner import _partition_path
-from .sparse_topk_experiment import sparse_matmul_topk
+from .reusable_sparse_index import SparseTopKIndex
 
 NAME_K=20
 ADDRESS_K=20
@@ -30,14 +29,23 @@ def generate_country(root: Path, output_root: Path, country: str, *, chunk_size:
     if chunk_size < 1: raise ValueError("chunk_size must be >= 1")
     qpath=_partition_path(root,"source1",country)
     qrows=pl.scan_parquet(qpath).select(pl.len()).collect(engine="streaming").item()
+    print(f"{country}: loading target records...",flush=True)
     targets=_load_targets(root,country)
+    print(f"{country}: loaded {targets.height:,} targets; building name index...",flush=True)
+    started=time.perf_counter()
+    name_index=SparseTopKIndex(targets,text_column="name_compact",
+                               config=RetrievalConfig(top_k=NAME_K))
+    print(f"{country}: name index ready; building address index...",flush=True)
+    address_index=SparseTopKIndex(targets,text_column="address_norm",
+                                  config=RetrievalConfig(top_k=ADDRESS_K))
+    print(f"{country}: address index ready; processing {qrows:,} queries...",flush=True)
     outdir=output_root/f"country={country}"
     outdir.mkdir(parents=True,exist_ok=True)
-    started=time.perf_counter(); total=0; max_per=0; chunks=0
+    total=0; max_per=0; chunks=0
     for offset in range(0,qrows,chunk_size):
         q=pl.scan_parquet(qpath).select(FIELDS).slice(offset,chunk_size).collect(engine="streaming")
-        name=sparse_matmul_topk(q,targets,config=RetrievalConfig(top_k=NAME_K),text_column="name_compact")
-        address=sparse_matmul_topk(q,targets,config=RetrievalConfig(top_k=ADDRESS_K),text_column="address_norm")
+        name=name_index.query(q)
+        address=address_index.query(q)
         hybrid=combine_fuzzy_candidates(name,address,final_top_k=FINAL_K)
         validate_hybrid_bound(hybrid,FINAL_K)
         if hybrid.height:
