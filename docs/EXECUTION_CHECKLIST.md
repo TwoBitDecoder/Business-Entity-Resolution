@@ -209,6 +209,11 @@ Gate after implementation:
 - name index build time: 92.3 s
 - first three chunks: exactly 20,000 candidates per 1,000-query chunk
 - query throughput observed: ~3-4 minutes per 1,000 queries
+- threaded query throughput observed: ~55-60 seconds per 1,000 queries
+- threaded CPU behavior: reaches ~100% during sparse multiplication, drops between chunks
+- threaded RAM observed: ~11.2-11.8 GB total system RAM
+- threading speedup versus prior run: roughly 3-4x
+- projected India name-pass time at current 55-60 s/1K: roughly 13.5-14.7 hours
 - stop threshold remains 12-13 GB total system RAM
 
 Runtime conclusion:
@@ -231,7 +236,9 @@ Code commits:
 - `f71b915` two-pass equivalence / cleanup tests
 - `17982e5` release raw target frame immediately after index construction
 
-Next controlled optimization: enable sparse-dot-topn's native multi-threaded multiplication in the reusable production index, then rerun the same 3-5 chunk India gate and compare seconds/chunk and RAM. Do not change retrieval representation or K values during this experiment.
+Threading optimization result: PASSED for speedup, but full-country runtime is still too high for the available time budget.
+
+Next controlled optimization: benchmark larger query chunks against the same already-fitted name index (1K/5K/10K) to measure throughput per 1K queries and RAM. This changes batching only; retrieval representation, target index, Top-K, scores, and candidate semantics stay unchanged.
 
 Do **not** start full-country generation until the optimized runtime gate passes.
 
