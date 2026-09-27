@@ -176,7 +176,7 @@ Conclusion: do not keep name and address target indexes resident simultaneously.
 
 ### P3 — sequential two-pass production retrieval
 
-Status: **IMPLEMENTED — UNIT/REAL-DATA GATE PENDING**
+Status: **UNIT TEST GATE PASSED — REAL-DATA MEMORY/RUNTIME GATE NEXT**
 
 Plan:
 
@@ -201,9 +201,9 @@ Plan:
 
 Gate after implementation:
 
-- full unit test suite
-- small synthetic two-pass equivalence test
-- India real-data startup
+- full unit test suite — PASSED
+- small synthetic two-pass equivalence test — PASSED
+- India real-data startup — NEXT
 - record name-index RAM
 - record address-index RAM
 - record first 3-5 query-chunk timings
