@@ -747,3 +747,20 @@ Decision:
 - do not launch full-country retrieval with the current exact full-pool multiplication strategy
 - candidate semantics remain frozen; next gate must reduce sparse multiplication search work without silently accepting recall loss
 - benchmark any new execution strategy first on the controlled truth-bearing sample and require candidate-recall evidence before adoption
+
+
+#### Stage 8 bounded end-to-end smoke gate
+
+Status: **PASSED**
+
+India bounded smoke:
+- 200 Source-1 rows
+- 100,000 target rows
+- 7,981 candidate pairs
+- 6,308 train pairs / 1,673 validation pairs
+- 200 matching-result rows (exact Source-1 coverage)
+- full retrieval -> features -> labels/split -> LightGBM -> scoring -> threshold -> submission validation completed
+
+Decision:
+- component integration is functional on real preprocessed data
+- proceed to production orchestration/checkpointing; do not reinterpret this bounded smoke as production-quality evaluation
