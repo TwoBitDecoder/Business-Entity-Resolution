@@ -32,10 +32,10 @@ def _word_topk(queries: pl.DataFrame, targets: pl.DataFrame, column: str, top_k:
     return pl.DataFrame(rows,schema=["s1_id","target_id","score"],orient="row")
 
 
-def _exact_name(queries: pl.DataFrame, targets: pl.DataFrame) -> pl.DataFrame:
-    q=queries.select(pl.col("entity_id").alias("s1_id"),"name_compact").filter(pl.col("name_compact")!="")
-    t=targets.select(pl.col("entity_id").alias("target_id"),"name_compact").filter(pl.col("name_compact")!="")
-    return q.join(t,on="name_compact",how="inner").select("s1_id","target_id")
+def _exact(queries: pl.DataFrame, targets: pl.DataFrame, column: str) -> pl.DataFrame:
+    q=queries.select(pl.col("entity_id").alias("s1_id"),column).filter(pl.col(column)!="")
+    t=targets.select(pl.col("entity_id").alias("target_id"),column).filter(pl.col(column)!="")
+    return q.join(t,on=column,how="inner").select("s1_id","target_id")
 
 
 def run(*,root="artifacts/preprocessed/train",country="India",queries=1000,
@@ -61,15 +61,16 @@ def run(*,root="artifacts/preprocessed/train",country="India",queries=1000,
     s3addr=_load(_partition_path(base,"source3",country),targets_per_source,["entity_id","address_norm"])
     taddr=pl.concat([s2addr,s3addr],how="vertical")
     word_addr=_word_topk(qaddr,taddr,"address_norm",top_k)
-    exact=_exact_name(q,targets)
-    candidates=pl.concat([word_name.select("s1_id","target_id"),word_addr.select("s1_id","target_id"),exact],how="vertical").unique()
+    exact_name=_exact(q,targets,"name_compact")
+    exact_addr=_exact(qaddr,taddr,"address_norm")
+    candidates=pl.concat([word_name.select("s1_id","target_id"),word_addr.select("s1_id","target_id"),exact_name,exact_addr],how="vertical").unique()
     elapsed=time.perf_counter()-started
     got=set(candidates.iter_rows())
     return {"query_rows":q.height,"target_rows":targets.height,"truth_pool":len(truth),
             "retrieved_truth":len(truth & got),"recall":len(truth & got)/len(truth) if truth else None,
             "candidate_rows":candidates.height,"elapsed_seconds":round(elapsed,3),
             "queries_per_second":round(q.height/elapsed,2) if elapsed else None,
-            "config":{"word_ngram":[1,2],"name_top_k":top_k,"address_top_k":top_k,"exact_name_rescue":True}}
+            "config":{"word_ngram":[1,2],"name_top_k":top_k,"address_top_k":top_k,"exact_name_rescue":True,"exact_address_rescue":True}}
 
 
 def main():
