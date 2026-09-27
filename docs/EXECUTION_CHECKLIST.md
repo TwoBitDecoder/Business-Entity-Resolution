@@ -709,3 +709,22 @@ Decision:
 - use n_jobs=2 for production sparse retrieval
 - this preserves exact frozen candidate semantics while materially improving throughput
 - next gate: patch production retrieval default to 2 threads and run regression tests before any full-country execution
+
+
+#### Stage 8 patched production timing gate
+
+Status: **PASSED AT 500K TARGET SCALE; FULL-POOL SCALE STILL UNVERIFIED**
+
+India, 2 threads, 5K queries / 500K targets:
+
+- index build: 12.52s
+- query: 13.35s
+- throughput: 374.51 queries/s
+- 100,000 candidates (exact Top20)
+- sample-scale projection for 883,188 India S1 name queries: 0.655h
+
+Decision:
+
+- the 2-thread production path reproduces the thread benchmark throughput
+- do not extrapolate 0.655h to the full ~4.13M India target pool; sparse multiplication cost depends on target index size/density
+- next gate: benchmark the actual full India target pool on a small query sample before launching full-country inference
