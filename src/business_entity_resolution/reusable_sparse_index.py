@@ -4,6 +4,7 @@ Fits the validated target representation once, then serves many bounded query
 chunks without rebuilding target TF-IDF for every chunk.
 """
 from __future__ import annotations
+import os
 import numpy as np
 import polars as pl
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -37,9 +38,11 @@ class SparseTopKIndex:
             return pl.DataFrame(schema={"s1_id":pl.String,"target_id":pl.String,
                                         "name_similarity":pl.Float32})
         qm=self.vectorizer.transform(q[self.text_column].to_list()).tocsr()
+        n_threads = (os.cpu_count() or 1) if self.cfg.n_jobs == -1 else max(1, self.cfg.n_jobs)
         sims=sp_matmul_topn(qm,self.target_matrix_t,
             top_n=min(self.cfg.top_k,len(self.target_ids)),
-            threshold=self.cfg.min_similarity,sort=True).tocsr()
+            threshold=self.cfg.min_similarity,sort=True,
+            n_threads=n_threads).tocsr()
         rows=[]; qids=q["entity_id"].to_list()
         for qi,qid in enumerate(qids):
             start,end=sims.indptr[qi],sims.indptr[qi+1]
