@@ -238,7 +238,18 @@ Code commits:
 
 Threading optimization result: PASSED for speedup, but full-country runtime is still too high for the available time budget.
 
-Next controlled optimization: benchmark larger query chunks against the same already-fitted name index (1K/5K/10K) to measure throughput per 1K queries and RAM. This changes batching only; retrieval representation, target index, Top-K, scores, and candidate semantics stay unchanged.
+Chunk-size sweep result: REJECTED as a meaningful optimization.
+
+Measured on India name retrieval against 4,133,346 targets:
+
+- 1K queries: 61.12 s total = 61.12 s / 1K
+- 5K queries: 299.02 s total = 59.80 s / 1K
+- 10K queries: 599.63 s total = 59.96 s / 1K
+- name index build: 92.72 s
+
+Conclusion: larger batches improve normalized throughput by only ~2%, so query batching is not the bottleneck. Do not increase production chunk size for speed.
+
+Next controlled optimization: evaluate bounded multi-key blocking on the existing 1K / 500K recall benchmark before changing production retrieval. The goal is to reduce the target pool searched per query while measuring truth-pair block coverage first. Candidate blocking must be recall-gated before any production adoption.
 
 Do **not** start full-country generation until the optimized runtime gate passes.
 
