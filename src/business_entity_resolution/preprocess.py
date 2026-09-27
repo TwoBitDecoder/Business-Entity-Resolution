@@ -10,10 +10,17 @@ from pathlib import Path
 import polars as pl
 
 SOURCE_COLUMNS = ["entity_id", "business_name", "business_address", "country"]
-TRAIN_FILES = {
+SPLIT_FILES = {
+    "train": {
     "source1": "train_source1.tsv",
     "source2": "train_source2.tsv",
     "source3": "train_source3.tsv",
+    },
+    "test": {
+        "source1": "test_source1.tsv",
+        "source2": "test_source2.tsv",
+        "source3": "test_source3.tsv",
+    },
 }
 
 
@@ -102,11 +109,15 @@ def build_preprocessed(
     data_dir: str | Path = "data",
     output_dir: str | Path = "artifacts/preprocessed/train",
     *,
+    split: str = "train",
     replace: bool = True,
 ) -> dict:
-    data_root = Path(data_dir) / "train"
+    if split not in SPLIT_FILES:
+        raise ValueError(f"split must be one of {sorted(SPLIT_FILES)}")
+    files = SPLIT_FILES[split]
+    data_root = Path(data_dir) / split
     out = Path(output_dir)
-    missing = [str(data_root / f) for f in TRAIN_FILES.values() if not (data_root / f).is_file()]
+    missing = [str(data_root / f) for f in files.values() if not (data_root / f).is_file()]
     if missing:
         raise FileNotFoundError("Missing required files:\n  " + "\n  ".join(missing))
 
@@ -117,7 +128,7 @@ def build_preprocessed(
     out.mkdir(parents=True)
 
     metadata = {"sources": {}}
-    for source, filename in TRAIN_FILES.items():
+    for source, filename in files.items():
         print(f"Preprocessing {source}...")
         metadata["sources"][source] = preprocess_source(data_root / filename, out, source)
 
@@ -127,7 +138,14 @@ def build_preprocessed(
 
 
 def main() -> None:
-    result = build_preprocessed()
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--split", choices=sorted(SPLIT_FILES), default="train")
+    parser.add_argument("--data-dir", default="data")
+    parser.add_argument("--output-dir")
+    args = parser.parse_args()
+    output = args.output_dir or f"artifacts/preprocessed/{args.split}"
+    result = build_preprocessed(args.data_dir, output, split=args.split)
     print("=" * 68)
     print("STAGE 4A — PREPROCESSING COMPLETE")
     for source, stats in result["sources"].items():
@@ -136,7 +154,7 @@ def main() -> None:
             f"{stats['elapsed_seconds']:.1f}s"
         )
     print("Validated row counts, country counts, and unique entity IDs.")
-    print("Saved under artifacts/preprocessed/train/")
+    print(f"Saved under {output}/")
 
 
 if __name__ == "__main__":
