@@ -502,3 +502,16 @@ Next plan:
 - proceed to feature/model development using bounded candidate samples now
 - in parallel, production candidate generation remains an engineering bottleneck to revisit before full inference
 - prioritize proving the classifier, thresholding, and output logic instead of spending the remaining project time exclusively on retrieval micro-optimizations
+
+
+### Stage 5 — pairwise features
+
+#### F1 deterministic feature builder
+
+Status: **UNIT GATE PASSED**
+
+- deterministic challenge-only pair features implemented
+- feature tests passed on user environment
+- no ground-truth fields enter feature construction
+
+Next gate: bounded real-data feature audit before training.
