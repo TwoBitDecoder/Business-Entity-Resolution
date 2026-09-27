@@ -29,7 +29,7 @@ class SparseTopKIndex:
         self.target_matrix=self.vectorizer.fit_transform(t[text_column].to_list()).tocsr()
         self.target_matrix_t=self.target_matrix.T.tocsc()
 
-    def query(self, queries: pl.DataFrame) -> pl.DataFrame:
+    def query(self, queries: pl.DataFrame, *, min_similarity: float | None = None) -> pl.DataFrame:
         required={"entity_id",self.text_column}
         missing=required-set(queries.columns)
         if missing: raise ValueError(f"queries missing columns: {sorted(missing)}")
@@ -39,9 +39,12 @@ class SparseTopKIndex:
                                         "name_similarity":pl.Float32})
         qm=self.vectorizer.transform(q[self.text_column].to_list()).tocsr()
         n_threads = (os.cpu_count() or 1) if self.cfg.n_jobs == -1 else max(1, self.cfg.n_jobs)
+        threshold = self.cfg.min_similarity if min_similarity is None else min_similarity
+        if not 0.0 <= threshold <= 1.0:
+            raise ValueError("min_similarity must be in [0, 1]")
         sims=sp_matmul_topn(qm,self.target_matrix_t,
             top_n=min(self.cfg.top_k,len(self.target_ids)),
-            threshold=self.cfg.min_similarity,sort=True,
+            threshold=threshold,sort=True,
             n_threads=n_threads).tocsr()
         rows=[]; qids=q["entity_id"].to_list()
         for qi,qid in enumerate(qids):
