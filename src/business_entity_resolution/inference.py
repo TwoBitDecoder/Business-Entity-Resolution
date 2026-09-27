@@ -67,3 +67,28 @@ def run_production_inference(*,preprocessed_root="artifacts/preprocessed/test",
     Path(output_dir).mkdir(parents=True,exist_ok=True)
     (Path(output_dir)/"metadata.json").write_text(json.dumps(result,indent=2)+"\n",encoding="utf-8")
     return result
+
+
+def validate_production_inputs(*,preprocessed_root="artifacts/preprocessed/test",
+                               candidate_root="artifacts/candidates/test",
+                               model_dir="artifacts/model",
+                               countries=("France","India","US")):
+    """Fail fast before expensive production scoring starts."""
+    root=Path(preprocessed_root); croot=Path(candidate_root); mroot=Path(model_dir)
+    required=[mroot/"pair_model.joblib",mroot/"metadata.json"]
+    for country in countries:
+        required.extend([
+            root/"source1"/f"country={country}"/"records.parquet",
+            root/"source2"/f"country={country}"/"records.parquet",
+            root/"source3"/f"country={country}"/"records.parquet",
+        ])
+        parts=sorted((croot/f"country={country}").glob("part-*.parquet"))
+        if not parts: raise FileNotFoundError(f"no candidate parts for {country}")
+        expected=list(range(len(parts)))
+        actual=[int(x.stem.split("-")[1]) for x in parts]
+        if actual!=expected: raise RuntimeError(f"candidate part sequence incomplete for {country}")
+    missing=[str(x) for x in required if not x.is_file()]
+    if missing: raise FileNotFoundError("missing production inputs: "+", ".join(missing))
+    metadata=json.loads((mroot/"metadata.json").read_text(encoding="utf-8"))
+    if "decision_threshold" not in metadata: raise ValueError("model metadata missing decision_threshold")
+    return {"countries":list(countries),"decision_threshold":float(metadata["decision_threshold"])}
