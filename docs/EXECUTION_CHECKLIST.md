@@ -587,3 +587,25 @@ Decision:
 - LightGBM pair separation is strong enough to continue
 - do not choose a threshold from pair-level precision/recall
 - next gate must sweep thresholds using the challenge's exact per-S1 macro F0.5, including singleton entities
+
+
+#### Stage 7 exact entity-level threshold sweep
+
+Status: **METRIC GATE PASSED; THRESHOLD NEEDS ROBUSTNESS VALIDATION**
+
+India controlled validation:
+
+- 233 validation S1 entities
+- 796 total truth pairs for those entities
+- 9,230 retrieved candidate pairs
+- best 0.01-grid threshold: 0.09
+- best macro F0.5: 0.262520
+- broad near-best region: approximately 0.09-0.23 (~0.2588-0.2625)
+- 0.50 macro F0.5: 0.244611
+- high pair-precision thresholds are materially worse at entity level
+
+Interpretation:
+
+- do not freeze 0.09 from one 233-entity validation partition
+- low absolute macro score is largely constrained by candidate coverage: many validation truth pairs are outside the bounded 500k target pool and therefore impossible to predict in this controlled experiment
+- next controlled gate: repeat grouped splits across fixed seeds on the same frozen candidate/features and inspect threshold stability before selecting an operating threshold
