@@ -669,3 +669,22 @@ Decision:
 - speed improvement is real, but recall loss is too large for a precision-heavy entity-resolution pipeline where retrieval misses are unrecoverable
 - do not replace the frozen char 3-5 name retriever with word 1-2
 - preserve frozen retrieval quality and move to a different production-engineering strategy
+
+
+#### Stage 8 exact retrieval batch-size benchmark
+
+Status: **REJECTED AS A RUNTIME SOLUTION**
+
+India 10K queries / 500K targets, frozen char 3-5 Name20:
+
+- batch 1,000: 70.08s, 142.70 queries/s
+- batch 5,000: 68.39s, 146.22 queries/s, 1.025x speedup
+- batch 10,000: 68.46s, 146.07 queries/s, 1.024x speedup
+- all candidate outputs identical to batch-1,000 baseline
+
+Decision:
+
+- correctness is preserved, but ~2.4% speedup is operationally insignificant
+- do not increase production batch size as the primary runtime fix
+- runtime bottleneck is sparse similarity computation itself, not Python/chunk-call overhead
+- next production optimization must change execution strategy while preserving the frozen candidate semantics
