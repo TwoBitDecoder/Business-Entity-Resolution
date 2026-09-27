@@ -58,3 +58,21 @@ def test_score_production_parts_resumes_checkpoint(tmp_path):
     stats=score_production_parts(model_dir=model,candidate_root=cand,preprocessed_root=prep,
                                  scored_root=scored,countries=("India",))
     assert stats[0]["resumed_parts"]==1 and stats[0]["written_parts"]==0
+
+
+def test_assemble_scored_submission_rejects_incomplete_scoring(tmp_path):
+    import json, pytest
+    from business_entity_resolution.inference import assemble_scored_submission
+    prep=tmp_path/"prep"; cand=tmp_path/"cand"; scored=tmp_path/"scored"; model=tmp_path/"model"
+    for source in ("source1","source2","source3"):
+        p=prep/source/"country=India"; p.mkdir(parents=True)
+        pl.DataFrame({"entity_id":["x"]}).write_parquet(p/"records.parquet")
+    cp=cand/"country=India"; cp.mkdir(parents=True)
+    for i in range(2):
+        pl.DataFrame({"s1_id":["x"],"target_id":["x"]}).write_parquet(cp/f"part-{i:06d}.parquet")
+    sp=scored/"country=India"; sp.mkdir(parents=True)
+    pl.DataFrame({"s1_id":["x"],"target_id":["x"],"match_probability":[.5]}).write_parquet(sp/"part-000000.parquet")
+    model.mkdir(); (model/"metadata.json").write_text(json.dumps({"decision_threshold":.09}))
+    with pytest.raises(RuntimeError,match="coverage mismatch"):
+        assemble_scored_submission(preprocessed_root=prep,candidate_root=cand,scored_root=scored,
+                                   model_dir=model,output_dir=tmp_path/"out",countries=("India",))
