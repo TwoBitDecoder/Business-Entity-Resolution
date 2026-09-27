@@ -50,3 +50,21 @@ def test_preprocess_rejects_duplicate_ids(tmp_path: Path):
         assert "duplicate entity_id" in str(exc)
     else:
         raise AssertionError("duplicate IDs should fail preprocessing")
+
+
+def test_preprocess_supports_test_split(tmp_path: Path):
+    test = tmp_path / "data" / "test"
+    test.mkdir(parents=True)
+    _write(test / "test_source1.tsv", [["q1", "Cafe One", "1 Rue A", "France"]])
+    _write(test / "test_source2.tsv", [["t1", "Cafe 1", "1 Rue A", "France"]])
+    _write(test / "test_source3.tsv", [["t2", "Cafe One", "", "France"]])
+
+    out = tmp_path / "preprocessed-test"
+    result = build_preprocessed(tmp_path / "data", out, split="test")
+
+    assert result["sources"]["source1"]["rows"] == 1
+    assert result["sources"]["source2"]["rows"] == 1
+    assert result["sources"]["source3"]["rows"] == 1
+    assert (out / "source1" / "country=France" / "records.parquet").exists()
+    assert (out / "source2" / "country=France" / "records.parquet").exists()
+    assert (out / "source3" / "country=France" / "records.parquet").exists()
