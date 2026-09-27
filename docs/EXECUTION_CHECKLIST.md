@@ -561,3 +561,29 @@ Decision:
 - candidate negatives are retrieval hard negatives by construction
 - keep all retrieved negatives for the first LightGBM baseline; do not downsample yet
 - advance to Stage 7 baseline classifier
+
+
+#### Stage 7 bounded LightGBM pair-classifier baseline
+
+Status: **PAIR MODEL GATE PASSED; THRESHOLD NOT YET SELECTED**
+
+India controlled validation:
+
+- train: 30,446 candidate pairs / 322 positives
+- validation: 9,230 candidate pairs / 85 positives
+- early stopping best iteration: 169
+- training: 0.254 s
+- ROC-AUC: 0.999278
+- average precision: 0.947108
+- pair operating points show expected precision/recall tradeoff:
+  - 0.50: P=.8875, R=.8353
+  - 0.70: P=.9571, R=.7882
+  - 0.80: P=.9692, R=.7412
+  - 0.90: P=.9831, R=.6824
+  - 0.98: P=1.0, R=.5176
+
+Decision:
+
+- LightGBM pair separation is strong enough to continue
+- do not choose a threshold from pair-level precision/recall
+- next gate must sweep thresholds using the challenge's exact per-S1 macro F0.5, including singleton entities
