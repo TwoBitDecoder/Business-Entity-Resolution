@@ -22,3 +22,15 @@ def test_signal_pass_resumes_existing_part(tmp_path,monkeypatch):
     assert stats["resumed_chunks"]==1
     assert FakeIndex.calls==1
     assert stats["chunks"]==2
+
+def test_signal_pass_rejects_checkpoint_for_wrong_query_chunk(tmp_path,monkeypatch):
+    import pytest
+    qpath=tmp_path/"q.parquet"
+    pl.DataFrame({"entity_id":["q1"],"name_compact":["a"]}).write_parquet(qpath)
+    monkeypatch.setattr(pc,"_load_signal_targets",lambda *a,**k: pl.DataFrame({"entity_id":["t"],"name_compact":["a"]}))
+    monkeypatch.setattr(pc,"SparseTopKIndex",FakeIndex)
+    work=tmp_path/"work"; work.mkdir()
+    pl.DataFrame({"s1_id":["WRONG"],"target_id":["t"],"similarity":[1.0]}).write_parquet(work/"part-000000.parquet")
+    with pytest.raises(RuntimeError,match="unexpected query IDs"):
+        pc._run_signal_pass(root=tmp_path,qpath=qpath,work_dir=work,country="X",
+            text_column="name_compact",label="name",top_k=20,qrows=1,chunk_size=1)
