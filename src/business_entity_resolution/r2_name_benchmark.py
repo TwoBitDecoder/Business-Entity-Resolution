@@ -75,7 +75,7 @@ def run_comparison(country: str = "India", queries: int = 1_000,
                    n_jobs: int = -1) -> dict:
     runs = {}
     for method in ("baseline", "sparse_topn"):
-        cmd = [sys.executable, "-m", __name__, "--child", method,
+        cmd = [sys.executable, "-m", "business_entity_resolution.r2_name_benchmark", "--child", method,
                "--country", country, "--queries", str(queries),
                "--targets-per-source", str(targets_per_source),
                "--top-k", str(top_k), "--n-jobs", str(n_jobs)]
