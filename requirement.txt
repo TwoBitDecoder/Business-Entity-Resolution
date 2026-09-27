@@ -9,5 +9,6 @@ pyyaml
 joblib
 sentence-transformers
 faiss-cpu
+sparse-dot-topn
 pytest
 ruff
