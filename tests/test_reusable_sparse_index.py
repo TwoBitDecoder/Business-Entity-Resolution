@@ -20,3 +20,13 @@ def test_reusable_index_can_query_multiple_chunks():
         got=idx.query(pl.DataFrame({"entity_id":[qid],"name_compact":[text]}))
         assert got.height==1
         assert got["s1_id"][0]==qid
+
+
+def test_reusable_index_multithreaded_query_matches_single_thread():
+    t=pl.DataFrame({"entity_id":["a","b","c"],"name_compact":["alpha","beta","gamma"]})
+    q=pl.DataFrame({"entity_id":["q1","q2"],"name_compact":["alph","bet"]})
+    one=SparseTopKIndex(t,text_column="name_compact",config=RetrievalConfig(top_k=2,n_jobs=1)).query(q).sort(["s1_id","target_id"])
+    two=SparseTopKIndex(t,text_column="name_compact",config=RetrievalConfig(top_k=2,n_jobs=2)).query(q).sort(["s1_id","target_id"])
+    assert two["s1_id"].to_list()==one["s1_id"].to_list()
+    assert two["target_id"].to_list()==one["target_id"].to_list()
+    assert two["name_similarity"].to_list()==one["name_similarity"].to_list()
