@@ -42,13 +42,13 @@ def run(root="artifacts/preprocessed/test", output="output"):
     # Polars quotes empty strings as "". The official validator requires a truly
     # empty second TSV field, so write these two simple columns manually.
     with (out/"matching_results.tsv").open("w",encoding="utf-8",newline="") as fh:
-        fh.write("source1_entity_id\\tmatched_entity_ids\\n")
+        fh.write("source1_entity_id\tmatched_entity_ids\n")
         for s1, ids in matching.iter_rows():
-            fh.write(f"{s1}\\t{ids}\\n")
+            fh.write(f"{s1}\t{ids}\n")
     with (out/"candidate_pairs.tsv").open("w",encoding="utf-8",newline="") as fh:
-        fh.write("source1_entity_id\\tcandidate_entity_ids\\n")
+        fh.write("source1_entity_id\tcandidate_entity_ids\n")
         for s1, ids in candidates.iter_rows():
-            fh.write(f"{s1}\\t{ids}\\n")
+            fh.write(f"{s1}\t{ids}\n")
     print(f"WROTE {matching.height:,} rows to {out}/matching_results.tsv")
     print(f"WROTE {candidates.height:,} rows to {out}/candidate_pairs.tsv")
 
