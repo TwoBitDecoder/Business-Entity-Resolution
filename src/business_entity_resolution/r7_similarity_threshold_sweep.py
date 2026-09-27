@@ -1,11 +1,12 @@
 """R7: conservative minimum-similarity pruning sweep.
 
-Keeps the validated char TF-IDF representation and Top-K fixed while measuring
-whether sparse-dot-topn thresholds can reduce runtime without materially
-reducing reachable-truth recall.
+Builds each validated char-TFIDF target index once, then reuses it across
+thresholds. This keeps the representation and Top-K fixed while avoiding ten
+expensive target refits.
 """
 from __future__ import annotations
 
+import gc
 import json
 import time
 from pathlib import Path
@@ -17,8 +18,7 @@ from .hybrid_candidates import combine_fuzzy_candidates
 from .r5_hybrid_benchmark import _load, _pair_recall
 from .retrieval_benchmark_runner import _partition_path
 from .retrieval_recall import load_truth
-from .sparse_topk_experiment import sparse_matmul_topk
-
+from .reusable_sparse_index import SparseTopKIndex
 
 THRESHOLDS = (0.0, 0.05, 0.10, 0.15, 0.20)
 
@@ -38,7 +38,6 @@ def run(
             _load(_partition_path(base, "source3", country), target_limit_per_source),
         ]
     )
-
     truth = load_truth("data/train/train_ground_truth.tsv", queries["entity_id"].to_list())
     truth = truth.join(
         targets.select(pl.col("entity_id").alias("target_id")).unique(),
@@ -46,22 +45,48 @@ def run(
         how="inner",
     )
 
+    print(f"{country}: building reusable name index...", flush=True)
+    t0 = time.perf_counter()
+    name_index = SparseTopKIndex(
+        targets,
+        text_column="name_compact",
+        config=RetrievalConfig(top_k=20),
+    )
+    name_build_seconds = time.perf_counter() - t0
+    name_results = {}
+    for threshold in THRESHOLDS:
+        t0 = time.perf_counter()
+        name_results[threshold] = (
+            name_index.query(queries, min_similarity=threshold),
+            time.perf_counter() - t0,
+        )
+        print(f"{country}: name threshold {threshold:.2f} done", flush=True)
+    del name_index
+    gc.collect()
+
+    print(f"{country}: building reusable address index...", flush=True)
+    t0 = time.perf_counter()
+    address_index = SparseTopKIndex(
+        targets,
+        text_column="address_norm",
+        config=RetrievalConfig(top_k=20),
+    )
+    address_build_seconds = time.perf_counter() - t0
+    address_results = {}
+    for threshold in THRESHOLDS:
+        t0 = time.perf_counter()
+        address_results[threshold] = (
+            address_index.query(queries, min_similarity=threshold),
+            time.perf_counter() - t0,
+        )
+        print(f"{country}: address threshold {threshold:.2f} done", flush=True)
+    del address_index
+    gc.collect()
+
     rows = []
     for threshold in THRESHOLDS:
-        cfg = RetrievalConfig(top_k=20, min_similarity=threshold)
-
-        t0 = time.perf_counter()
-        name = sparse_matmul_topk(
-            queries, targets, config=cfg, text_column="name_compact"
-        )
-        name_seconds = time.perf_counter() - t0
-
-        t0 = time.perf_counter()
-        address = sparse_matmul_topk(
-            queries, targets, config=cfg, text_column="address_norm"
-        )
-        address_seconds = time.perf_counter() - t0
-
+        name, name_seconds = name_results[threshold]
+        address, address_seconds = address_results[threshold]
         hybrid = combine_fuzzy_candidates(name, address, final_top_k=40)
         recall = _pair_recall(hybrid, truth)
         rows.append(
@@ -72,14 +97,14 @@ def run(
                 "hybrid_candidate_rows": hybrid.height,
                 "truth_pairs_retrieved": round((recall or 0) * truth.height),
                 "pair_recall": recall,
-                "name_seconds": name_seconds,
-                "address_seconds": address_seconds,
-                "retrieval_seconds": name_seconds + address_seconds,
+                "name_query_seconds": name_seconds,
+                "address_query_seconds": address_seconds,
+                "query_seconds": name_seconds + address_seconds,
             }
         )
 
     return {
-        "purpose": "R7 minimum-similarity pruning sweep",
+        "purpose": "R7 minimum-similarity pruning sweep with reusable indexes",
         "country": country,
         "query_rows": queries.height,
         "target_rows": targets.height,
@@ -87,6 +112,8 @@ def run(
         "name_top_k": 20,
         "address_top_k": 20,
         "final_top_k": 40,
+        "name_index_build_seconds": name_build_seconds,
+        "address_index_build_seconds": address_build_seconds,
         "results": rows,
     }
 
