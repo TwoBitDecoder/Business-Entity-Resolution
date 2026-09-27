@@ -1,6 +1,7 @@
 """Chunk-safe inference helpers for candidate scoring and submission output."""
 from __future__ import annotations
 from pathlib import Path
+import json
 import joblib
 import polars as pl
 from .features import build_pair_features
@@ -28,3 +29,41 @@ def build_validated_submission(*,model_path,candidate_dir,source1,targets,
     write_submission(output_dir,matching,pairs)
     return {"source1_rows":source1.height,"candidate_pairs":pairs.height,
             "predicted_matches":sum(0 if x=="" else len(x.split(",")) for x in matching["matched_entity_ids"])}
+
+
+def load_partitioned_records(root, source, countries):
+    frames=[]
+    for country in countries:
+        path=Path(root)/source/f"country={country}"/"records.parquet"
+        if not path.is_file(): raise FileNotFoundError(path)
+        frames.append(pl.read_parquet(path))
+    return pl.concat(frames,how="vertical")
+
+def run_production_inference(*,preprocessed_root="artifacts/preprocessed/test",
+                             candidate_root="artifacts/candidates/test",
+                             model_dir="artifacts/model",output_dir="output",
+                             countries=("France","India","US")):
+    root=Path(preprocessed_root)
+    source1=load_partitioned_records(root,"source1",countries)
+    targets=pl.concat([load_partitioned_records(root,s,countries) for s in ("source2","source3")],how="vertical")
+    candidate_frames=[]
+    for country in countries:
+        parts=sorted((Path(candidate_root)/f"country={country}").glob("part-*.parquet"))
+        if not parts: raise ValueError(f"no candidate parts found for {country}")
+        candidate_frames.extend(pl.read_parquet(x) for x in parts)
+    candidates=pl.concat(candidate_frames,how="vertical")
+    features=build_pair_features(candidates,source1,targets)
+    model=joblib.load(Path(model_dir)/"pair_model.joblib")
+    metadata=json.loads((Path(model_dir)/"metadata.json").read_text(encoding="utf-8"))
+    threshold=float(metadata["decision_threshold"])
+    scored=score_pairs(model,features)
+    matching=build_matching_results(source1,scored,threshold=threshold)
+    pairs=build_candidate_pairs(candidates)
+    validate_submission(source1,targets,matching,pairs)
+    write_submission(output_dir,matching,pairs)
+    result={"countries":list(countries),"source1_rows":source1.height,
+            "target_rows":targets.height,"candidate_pairs":pairs.height,
+            "threshold":threshold,"matching_rows":matching.height}
+    Path(output_dir).mkdir(parents=True,exist_ok=True)
+    (Path(output_dir)/"metadata.json").write_text(json.dumps(result,indent=2)+"\n",encoding="utf-8")
+    return result
