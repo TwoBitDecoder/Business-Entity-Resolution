@@ -1,4 +1,4 @@
-"""R5.4: diagnose fuzzy rank and score for R5.3 residual truth pairs.
+"""R5.4: batched fuzzy rank and score diagnostic for R5.3 residual truth pairs.
 
 For only the tiny known residual set, compute exact sparse cosine scores and
 count how many targets outrank each truth target. This is diagnostic-only and
@@ -22,46 +22,53 @@ from .retrieval_recall import load_truth
 from .sparse_topk_experiment import sparse_matmul_topk
 
 
-def truth_rank_for_signal(
-    query_text: str, truth_target_id: str, truth_text: str,
-    target_ids: list[str], target_texts: list[str],
-) -> dict:
-    """Return truth cosine score and deterministic 1-based rank for one signal."""
-    if not query_text or not truth_text:
-        return {"score": 0.0, "rank": None, "targets_strictly_above": None}
+def truth_ranks_batched(
+    residuals: pl.DataFrame, targets: pl.DataFrame, *, text_column: str
+) -> dict[tuple[str, str], dict]:
+    """Fit the target representation once and rank all residual truth pairs."""
+    empty = {"score": 0.0, "rank": None, "targets_strictly_above": None}
+    if residuals.is_empty():
+        return {}
 
-    nonempty = [(tid, txt) for tid, txt in zip(target_ids, target_texts, strict=True) if txt]
-    if not nonempty:
-        return {"score": 0.0, "rank": None, "targets_strictly_above": None}
+    t = targets.select("entity_id", text_column).filter(pl.col(text_column) != "")
+    ids = t["entity_id"].to_list()
+    if not ids:
+        return {(r["s1_id"], r["target_id"]): empty.copy()
+                for r in residuals.iter_rows(named=True)}
+    id_to_idx = {tid: i for i, tid in enumerate(ids)}
 
-    ids = [x[0] for x in nonempty]
-    texts = [x[1] for x in nonempty]
     vectorizer = TfidfVectorizer(
         analyzer="char", ngram_range=(3, 5), lowercase=False,
         dtype=np.float32, norm="l2",
     )
-    target_matrix = vectorizer.fit_transform(texts).tocsr()
-    query_vector = vectorizer.transform([query_text]).tocsr()
-    scores = (query_vector @ target_matrix.T).toarray().ravel()
-    try:
-        truth_idx = ids.index(truth_target_id)
-    except ValueError as exc:
-        raise ValueError(f"truth target not present: {truth_target_id}") from exc
+    target_matrix = vectorizer.fit_transform(t[text_column].to_list()).tocsr()
+    target_t = target_matrix.T.tocsc()
 
-    truth_score = float(scores[truth_idx])
-    strictly_above = int(np.count_nonzero(scores > truth_score))
-    # Match the retriever's deterministic presentation tie-break: score desc,
-    # target_id asc. This is diagnostic rank, not a change to Top-N selection.
-    tied_before = sum(
-        1 for i, score in enumerate(scores)
-        if float(score) == truth_score and ids[i] < truth_target_id
-    )
-    return {
-        "score": truth_score,
-        "rank": strictly_above + tied_before + 1,
-        "targets_strictly_above": strictly_above,
-    }
+    valid, out = [], {}
+    for r in residuals.iter_rows(named=True):
+        key = (r["s1_id"], r["target_id"])
+        if not r[text_column] or r["target_id"] not in id_to_idx:
+            out[key] = empty.copy()
+        else:
+            valid.append(r)
+    if not valid:
+        return out
 
+    query_matrix = vectorizer.transform([r[text_column] for r in valid]).tocsr()
+    ids_array = np.asarray(ids, dtype=str)
+    for qi, r in enumerate(valid):
+        scores = (query_matrix[qi] @ target_t).toarray().ravel()
+        truth_score = float(scores[id_to_idx[r["target_id"]]])
+        above = int(np.count_nonzero(scores > truth_score))
+        tied_before = int(np.count_nonzero(
+            (scores == truth_score) & (ids_array < r["target_id"])
+        ))
+        out[(r["s1_id"], r["target_id"])] = {
+            "score": truth_score,
+            "rank": above + tied_before + 1,
+            "targets_strictly_above": above,
+        }
+    return out
 
 def _load(path: Path, limit: int) -> pl.DataFrame:
     return (
@@ -100,34 +107,28 @@ def run_rank_diagnostic(
         hybrid.select("s1_id", "target_id"), on=["s1_id", "target_id"], how="anti"
     )
 
-    target_ids = targets["entity_id"].to_list()
-    target_names = targets["name_compact"].to_list()
-    target_addresses = targets["address_norm"].to_list()
-    q_by_id = {r["entity_id"]: r for r in queries.to_dicts()}
-    t_by_id = {r["entity_id"]: r for r in targets.to_dicts()}
+    q_fields = queries.select(
+        pl.col("entity_id").alias("s1_id"), "name_compact", "address_norm"
+    )
+    residuals = misses.join(q_fields, on="s1_id")
+    name_diag = truth_ranks_batched(residuals, targets, text_column="name_compact")
+    address_diag = truth_ranks_batched(residuals, targets, text_column="address_norm")
 
     rows = []
-    for miss in misses.iter_rows(named=True):
-        q = q_by_id[miss["s1_id"]]
-        t = t_by_id[miss["target_id"]]
-        name_diag = truth_rank_for_signal(
-            q["name_compact"], miss["target_id"], t["name_compact"],
-            target_ids, target_names,
-        )
-        address_diag = truth_rank_for_signal(
-            q["address_norm"], miss["target_id"], t["address_norm"],
-            target_ids, target_addresses,
-        )
+    for miss in residuals.iter_rows(named=True):
+        key = (miss["s1_id"], miss["target_id"])
+        n = name_diag[key]
+        a = address_diag[key]
         rows.append({
-            "s1_id": miss["s1_id"], "target_id": miss["target_id"],
-            "name_score": name_diag["score"], "name_rank": name_diag["rank"],
-            "name_targets_strictly_above": name_diag["targets_strictly_above"],
-            "address_score": address_diag["score"], "address_rank": address_diag["rank"],
-            "address_targets_strictly_above": address_diag["targets_strictly_above"],
+            "s1_id": key[0], "target_id": key[1],
+            "name_score": n["score"], "name_rank": n["rank"],
+            "name_targets_strictly_above": n["targets_strictly_above"],
+            "address_score": a["score"], "address_rank": a["rank"],
+            "address_targets_strictly_above": a["targets_strictly_above"],
         })
 
     return {
-        "purpose": "R5.4 residual fuzzy rank/similarity diagnostic",
+        "purpose": "R5.4 batched residual fuzzy rank/similarity diagnostic",
         "country": country,
         "query_rows": queries.height,
         "target_rows": targets.height,
