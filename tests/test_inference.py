@@ -18,3 +18,12 @@ def test_score_candidate_parts(tmp_path):
     scored,candidates=score_candidate_parts(mp,cdir,s1,t)
     assert scored.height==1 and candidates.height==1
     assert scored["match_probability"][0]==.5
+
+
+def test_load_partitioned_records(tmp_path):
+    from business_entity_resolution.inference import load_partitioned_records
+    for country,eid in [("India","i"),("US","u")]:
+        p=tmp_path/"source1"/f"country={country}"; p.mkdir(parents=True)
+        pl.DataFrame({"entity_id":[eid]}).write_parquet(p/"records.parquet")
+    out=load_partitioned_records(tmp_path,"source1",("India","US"))
+    assert set(out["entity_id"])=={"i","u"}
