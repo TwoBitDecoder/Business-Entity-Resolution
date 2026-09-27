@@ -41,11 +41,10 @@ def _word_topk(queries: pl.DataFrame, targets: pl.DataFrame) -> pl.DataFrame:
                         orient="row").with_columns(pl.col("name_similarity").cast(pl.Float32))
 
 
-def _recall(candidates: pl.DataFrame, truth: pl.DataFrame) -> tuple[int,int,float]:
-    truth_in=truth.join(candidates.select("target_id").unique(),on="target_id",how="inner")
-    got=truth_in.join(candidates.select("s1_id","target_id").unique(),
-                      on=["s1_id","target_id"],how="inner").height
-    total=truth_in.height
+def _recall(candidates: pl.DataFrame, truth_pool: pl.DataFrame) -> tuple[int,int,float]:
+    got=truth_pool.join(candidates.select("s1_id","target_id").unique(),
+                        on=["s1_id","target_id"],how="inner").height
+    total=truth_pool.height
     return got,total,(got/total if total else 0.0)
 
 
@@ -56,12 +55,14 @@ def run(root="artifacts/preprocessed/train",country="India",query_count=1000,
     t=pl.concat([_load(_partition_path(root,s,country),target_limit_per_source)
                  for s in ("source2","source3")])
     truth=load_truth("data/train/train_ground_truth.tsv",q["entity_id"].to_list())
+    target_ids=t.select(pl.col("entity_id").alias("target_id")).unique()
+    truth_pool=truth.join(target_ids,on="target_id",how="inner")
 
     start=time.perf_counter()
     frozen=sparse_matmul_topk(q,t,config=RetrievalConfig(top_k=K),text_column="name_compact")
     frozen_s=time.perf_counter()-start
     start=time.perf_counter(); word=_word_topk(q,t); word_s=time.perf_counter()-start
-    fg,ft,fr=_recall(frozen,truth); wg,wt,wr=_recall(word,truth)
+    fg,ft,fr=_recall(frozen,truth_pool); wg,wt,wr=_recall(word,truth_pool)
     result={"country":country,"query_count":query_count,"target_rows":t.height,
             "frozen_char":{"seconds":frozen_s,"candidate_rows":frozen.height,
                            "truth_pool":ft,"retrieved_truth":fg,"recall":fr},
