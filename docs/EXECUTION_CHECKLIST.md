@@ -515,3 +515,26 @@ Status: **UNIT GATE PASSED**
 - no ground-truth fields enter feature construction
 
 Next gate: bounded real-data feature audit before training.
+
+
+#### F2 bounded real-data feature audit
+
+Status: **PASSED**
+
+India controlled gate:
+
+- 1,000 Source-1 queries / 500,000 targets
+- 39,676 candidate pairs -> 39,676 feature rows
+- 19 output columns
+- zero nulls in all feature/ID/label audit columns
+- zero non-finite values in numeric features
+- 407 positive candidate pairs / 39,269 negatives (1.026% positive)
+- retrieval: 57.29 s
+- feature generation: 0.447 s (~88.7k rows/s)
+
+Decision:
+
+- feature construction is correct and cheap relative to retrieval
+- Stage 5 bounded gate passed
+- freeze this initial feature set and advance to Stage 6
+- next: construct labelled candidate training data with S1-grouped train/validation split and candidate hard negatives
