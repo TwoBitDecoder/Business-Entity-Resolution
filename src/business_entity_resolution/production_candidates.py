@@ -88,6 +88,17 @@ def _run_signal_pass(
         part_path = work_dir / f"part-{chunks:06d}.parquet"
         if part_path.is_file():
             existing = pl.read_parquet(part_path, columns=["s1_id", "target_id"])
+            expected_ids = set(
+                pl.scan_parquet(qpath)
+                .select("entity_id")
+                .slice(offset, chunk_size)
+                .collect(engine="streaming")["entity_id"].to_list()
+            )
+            existing_ids = set(existing["s1_id"].unique().to_list())
+            if not existing_ids <= expected_ids:
+                raise RuntimeError(
+                    f"checkpoint part {part_path.name} contains unexpected query IDs"
+                )
             candidate_rows += existing.height
             chunks += 1
             resumed_chunks += 1
