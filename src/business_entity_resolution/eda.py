@@ -126,7 +126,7 @@ def _ground_truth_stats(
     matches = (
         gt_clean.filter(pl.col("matched_entity_ids") != "")
         .with_columns(pl.col("matched_entity_ids").str.split(",").alias("target_id"))
-        .explode("target_id")
+        .explode("target_id", empty_as_null=True)
         .with_columns(pl.col("target_id").str.strip_chars())
         .filter(pl.col("target_id") != "")
         .select("source1_entity_id", "target_id")
