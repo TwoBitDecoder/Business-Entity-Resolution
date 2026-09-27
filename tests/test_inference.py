@@ -42,3 +42,19 @@ def test_production_preflight_rejects_missing_candidate_part(tmp_path):
     pl.DataFrame({"s1_id":["q"],"target_id":["t"]}).write_parquet(p/"part-000001.parquet")
     with pytest.raises(RuntimeError,match="sequence incomplete"):
         validate_production_inputs(preprocessed_root=root,candidate_root=cand,model_dir=model,countries=("India",))
+
+
+def test_score_production_parts_resumes_checkpoint(tmp_path):
+    from business_entity_resolution.inference import score_production_parts
+    prep=tmp_path/"prep"; cand=tmp_path/"cand"; scored=tmp_path/"scored"
+    for source in ("source1","source2","source3"):
+        p=prep/source/"country=India"; p.mkdir(parents=True)
+        pl.DataFrame({"entity_id":["x"],"name_norm":["x"],"name_compact":["x"],"address_norm":["x"]}).write_parquet(p/"records.parquet")
+    cp=cand/"country=India"; cp.mkdir(parents=True)
+    pl.DataFrame({"s1_id":["x"],"target_id":["x"]}).write_parquet(cp/"part-000000.parquet")
+    sp=scored/"country=India"; sp.mkdir(parents=True)
+    pl.DataFrame({"s1_id":["x"],"target_id":["x"],"match_probability":[.5]}).write_parquet(sp/"part-000000.parquet")
+    model=tmp_path/"model"; model.mkdir(); joblib.dump(DummyModel(),model/"pair_model.joblib")
+    stats=score_production_parts(model_dir=model,candidate_root=cand,preprocessed_root=prep,
+                                 scored_root=scored,countries=("India",))
+    assert stats[0]["resumed_parts"]==1 and stats[0]["written_parts"]==0
