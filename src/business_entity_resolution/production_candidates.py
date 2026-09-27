@@ -81,9 +81,22 @@ def _run_signal_pass(
     work_dir.mkdir(parents=True, exist_ok=True)
     candidate_rows = 0
     chunks = 0
+    resumed_chunks = 0
     query_started = time.perf_counter()
 
     for offset in range(0, qrows, chunk_size):
+        part_path = work_dir / f"part-{chunks:06d}.parquet"
+        if part_path.is_file():
+            existing = pl.read_parquet(part_path, columns=["s1_id", "target_id"])
+            candidate_rows += existing.height
+            chunks += 1
+            resumed_chunks += 1
+            print(
+                f"{country}: [{label}] resume: keeping completed part "
+                f"{chunks - 1:06d}",
+                flush=True,
+            )
+            continue
         q = (
             pl.scan_parquet(qpath)
             .select("entity_id", text_column)
@@ -92,7 +105,7 @@ def _run_signal_pass(
         )
         candidates = index.query(q)
         candidates.write_parquet(
-            work_dir / f"part-{chunks:06d}.parquet",
+            part_path,
             compression="zstd",
         )
         candidate_rows += candidates.height
@@ -115,6 +128,7 @@ def _run_signal_pass(
         "target_rows": target_rows,
         "candidate_rows": candidate_rows,
         "chunks": chunks,
+        "resumed_chunks": resumed_chunks,
         "index_seconds": index_seconds,
         "query_seconds": query_seconds,
     }
@@ -195,11 +209,11 @@ def generate_country(
     name_dir = work_country / "name"
     address_dir = work_country / "address"
 
-    # generate() normally starts from a clean output root. This also makes
-    # direct generate_country() calls deterministic after an interrupted run.
-    for path in (final_dir, work_country):
-        if path.exists():
-            shutil.rmtree(path)
+    # Preserve temporary signal parts so an interrupted expensive retrieval
+    # pass can resume. Final output is rebuilt deterministically after both
+    # signal passes complete.
+    if final_dir.exists():
+        shutil.rmtree(final_dir)
 
     started = time.perf_counter()
 
