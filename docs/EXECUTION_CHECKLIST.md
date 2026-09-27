@@ -424,3 +424,37 @@ Next controlled optimization:
 - keep the same character TF-IDF representation and Top-K
 - sweep conservative similarity thresholds and measure recall + runtime
 - only adopt a threshold if recall remains effectively unchanged while runtime improves materially
+
+
+### R7 — minimum-similarity pruning sweep
+
+Status: **REJECTED AS A RUNTIME OPTIMIZATION**
+
+Controlled India benchmark:
+
+- 1,000 Source-1 queries
+- 500,000 targets
+- 416 reachable truth pairs
+- frozen K values: name 20, address 20, final 40
+
+Results:
+
+- threshold 0.00: 39,676 hybrid candidates; 407/416 truth; 97.8365% recall; 58.16 s
+- threshold 0.05: 39,676 candidates; 407/416 truth; 97.8365% recall; 60.82 s
+- threshold 0.10: 39,676 candidates; 407/416 truth; 97.8365% recall; 59.14 s
+- threshold 0.15: 39,664 candidates; 407/416 truth; 97.8365% recall; 59.84 s
+- threshold 0.20: 39,451 candidates; 407/416 truth; 97.8365% recall; 61.59 s
+
+Decision:
+
+- thresholds through 0.20 preserve recall on this benchmark
+- candidate reduction is negligible until 0.20
+- runtime does not improve; measured times are flat/noisy and sometimes slower
+- do not adopt similarity thresholding as a production speed optimization
+
+Next controlled structural experiment:
+
+- test source-split retrieval on the same 1K/500K benchmark
+- retrieve Top-K independently from Source 2 and Source 3, then merge/cap to the same final Top-40
+- measure recall and candidate volume versus the frozen combined-target baseline
+- if recall is preserved, benchmark runtime/memory because each target index becomes roughly half-sized
