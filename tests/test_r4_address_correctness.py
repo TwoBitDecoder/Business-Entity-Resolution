@@ -12,7 +12,7 @@ def test_address_sparse_topn_matches_brute_without_ties():
         "entity_id": ["t1", "t2", "t3", "t4"],
         "address_norm": [
             "12 mg road bengaluru", "12 mg rd bengaluru",
-            "44 park street kolkata", "99 unrelated avenue",
+            "44 park street kolkata", "44 park st kolkata",
         ],
     })
     result = compare_address_retrieval(queries, targets, top_k=2)
