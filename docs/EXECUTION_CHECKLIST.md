@@ -176,7 +176,7 @@ Conclusion: do not keep name and address target indexes resident simultaneously.
 
 ### P3 — sequential two-pass production retrieval
 
-Status: **UNIT TEST GATE PASSED — REAL-DATA MEMORY/RUNTIME GATE NEXT**
+Status: **REAL-DATA MEMORY GATE PASSED; RUNTIME GATE FAILED — OPTIMIZATION REQUIRED**
 
 Plan:
 
@@ -203,11 +203,19 @@ Gate after implementation:
 
 - full unit test suite — PASSED
 - small synthetic two-pass equivalence test — PASSED
-- India real-data startup — NEXT
-- record name-index RAM
-- record address-index RAM
-- record first 3-5 query-chunk timings
-- stop if total RAM approaches 12-13 GB
+- India real-data startup — PASSED
+- name-index build memory observed: ~9-9.5 GB total system RAM
+- after raw targets released: ~10.9-11.2 GB total system RAM
+- name index build time: 92.3 s
+- first three chunks: exactly 20,000 candidates per 1,000-query chunk
+- query throughput observed: ~3-4 minutes per 1,000 queries
+- stop threshold remains 12-13 GB total system RAM
+
+Runtime conclusion:
+
+- 883,188 India Source-1 rows imply ~884 chunks at chunk_size=1,000.
+- At 3-4 minutes/chunk, the name pass alone projects to roughly 44-59 hours.
+- Therefore P3 is memory-safe enough for the name pass but operationally too slow and must not be used for full-country generation.
 
 Implementation notes:
 
@@ -223,7 +231,9 @@ Code commits:
 - `f71b915` two-pass equivalence / cleanup tests
 - `17982e5` release raw target frame immediately after index construction
 
-Do **not** start full-country generation until this gate passes.
+Next controlled optimization: enable sparse-dot-topn's native multi-threaded multiplication in the reusable production index, then rerun the same 3-5 chunk India gate and compare seconds/chunk and RAM. Do not change retrieval representation or K values during this experiment.
+
+Do **not** start full-country generation until the optimized runtime gate passes.
 
 ## Remaining stages
 
