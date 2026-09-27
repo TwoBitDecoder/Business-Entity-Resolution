@@ -609,3 +609,23 @@ Interpretation:
 - do not freeze 0.09 from one 233-entity validation partition
 - low absolute macro score is largely constrained by candidate coverage: many validation truth pairs are outside the bounded 500k target pool and therefore impossible to predict in this controlled experiment
 - next controlled gate: repeat grouped splits across fixed seeds on the same frozen candidate/features and inspect threshold stability before selecting an operating threshold
+
+
+#### Stage 7 grouped-split threshold robustness
+
+Status: **PASSED FOR OPERATING REGION; DO NOT OVERFIT PER-SPLIT OPTIMA**
+
+Five deterministic S1-grouped splits:
+
+- per-seed best thresholds: 0.04, 0.10, 0.09, 0.15, 0.25
+- best mean threshold across seeds: 0.09
+- best mean macro F0.5: 0.239285
+- thresholds 0.05-0.11 form a broad near-best mean region (~0.2378-0.2393)
+- high thresholds degrade consistently
+
+Decision:
+
+- freeze provisional operating threshold at 0.09 for the current India bounded baseline
+- treat 0.09 as provisional, not globally calibrated: France is unseen in training and production candidate coverage differs from the bounded 500k experiment
+- stop threshold micro-tuning
+- next priority is production/end-to-end engineering and submission validation
